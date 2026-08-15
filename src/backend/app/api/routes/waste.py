@@ -1,4 +1,4 @@
-"""Waste-sorting submission + pickup endpoints.
+"""Waste-sorting submission + pickup/dropoff endpoints.
 
 A `user` uploads a photo of their sorted waste; the image is run through
 the segmentation + classification pipeline (see
@@ -7,9 +7,20 @@ Each detected object becomes its own `wastes` row plus a `waste_tokens`
 point-range ticket (see `app/services/rewards_policy.py`) — points are
 only credited once the user draws the token via `/waste/tokens/{id}/draw`.
 
-`waste_bank`/`authorized` accounts use `/waste/pickups` to see submissions
-still awaiting collection (region-scoped for waste_bank) and
-`/waste/pickups/{id}/collect` to mark one collected.
+Once submitted, a submission sits at status "pending_choice" until the
+user picks how it gets to a waste_bank, via
+`POST /waste/submissions/{id}/delivery-method`:
+
+  - "pickup": status -> "pending_pickup", and the response includes the
+    scheduled collection slot (`app/services/pickup_scheduler.py`).
+    `waste_bank`/`authorized` accounts then use `/waste/pickups` to see
+    submissions still awaiting collection (region-scoped for waste_bank)
+    and `/waste/pickups/{id}/collect` to mark one collected.
+  - "self_dropoff": status -> "pending_dropoff", and the response
+    includes the nearest waste_bank to drop it off at. When the user
+    actually shows up and drops it off, `POST
+    /waste/dropoffs/{id}/confirm` is meant to be hit automatically by
+    that waste_bank's intake system to mark it "dropped_off".
 """
 
 import random
@@ -22,15 +33,20 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from sqlalchemy import func, insert, select, update
 
-from app.api.deps import CurrentUser, require_roles
+from app.api.deps import CurrentUser, get_current_user, require_roles
 from app.core.config import Settings, get_settings
-from app.db import get_engine, regions, users, waste_submissions, waste_tokens, wastes
+from app.db import get_engine, regions, users, waste_bank_regions, waste_submissions, waste_tokens, wastes
 from app.schemas.waste import (
+    DeliveryChoiceOut,
+    DeliveryMethodChoice,
+    NearestWasteBankOut,
     PendingPickupOut,
     TokenDrawOut,
     WasteObjectPrediction,
+    WasteRecordOut,
     WasteSubmissionOut,
 )
+from app.services.pickup_scheduler import compute_next_pickup_slot
 from app.services.rewards_policy import compute_token_range
 from app.services.waste_classifier import WasteClassifierService
 
@@ -51,6 +67,8 @@ async def submit_waste_photo(
 
     Runs the Mask2Former segmentation model to find individual objects in
     the photo, then the ViT waste-classifier on each detected object.
+    The resulting submission starts at status "pending_choice" — see
+    `POST /waste/submissions/{id}/delivery-method` for what comes next.
     """
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Uploaded file must be an image")
@@ -86,7 +104,7 @@ async def submit_waste_photo(
                 created_at=submitted_at,
                 segmented_image_path=report.get("segmented_image_path"),
                 results_grid_path=report.get("results_grid_path"),
-                status="pending_pickup",
+                status="pending_choice",
             )
             .returning(waste_submissions.c.id)
         ).scalar_one()
@@ -112,7 +130,9 @@ async def submit_waste_photo(
                 .returning(wastes.c.id)
             ).scalar_one()
 
-            start_range, end_range = compute_token_range(obj["waste_label"], per_item_weight)
+            start_range, end_range = compute_token_range(
+                obj["waste_label"], per_item_weight, obj["waste_confidence"]
+            )
             token_id = conn.execute(
                 insert(waste_tokens)
                 .values(waste_id=waste_id, start_range=start_range, end_range=end_range)
@@ -141,9 +161,91 @@ async def submit_waste_photo(
         created_at=submitted_at,
         num_objects=len(objects_out),
         objects=objects_out,
-        status="pending_pickup",
+        status="pending_choice",
         segmented_image_path=report.get("segmented_image_path"),
         results_grid_path=report.get("results_grid_path"),
+    )
+
+
+@router.post("/submissions/{submission_id}/delivery-method", response_model=DeliveryChoiceOut)
+def choose_delivery_method(
+    submission_id: int,
+    payload: DeliveryMethodChoice,
+    current_user: CurrentUser = Depends(require_roles("user")),
+) -> DeliveryChoiceOut:
+    """Record how a submission's waste is getting to a waste_bank, and
+    hand back what that means for the user: a pickup slot, or the
+    nearest waste_bank to drop it off at themselves.
+
+    One-shot per submission — the submission must still be at status
+    "pending_choice" (i.e. this hasn't been called for it before).
+    """
+    with get_engine().begin() as conn:
+        row = conn.execute(
+            select(waste_submissions.c.user_id).where(waste_submissions.c.id == submission_id)
+        ).first()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Submission not found")
+        if row[0] != current_user.id:
+            raise HTTPException(status_code=403, detail="This submission doesn't belong to you")
+
+        if payload.method == "pickup":
+            scheduled_at = compute_next_pickup_slot(datetime.now(timezone.utc))
+            result = conn.execute(
+                update(waste_submissions)
+                .where(waste_submissions.c.id == submission_id, waste_submissions.c.status == "pending_choice")
+                .values(delivery_method="pickup", status="pending_pickup", scheduled_pickup_at=scheduled_at)
+            )
+            if result.rowcount == 0:
+                raise HTTPException(status_code=409, detail="Delivery method already chosen for this submission")
+
+            return DeliveryChoiceOut(
+                submission_id=submission_id,
+                status="pending_pickup",
+                delivery_method="pickup",
+                scheduled_pickup_at=scheduled_at,
+            )
+
+        # self_dropoff: point the user at the waste_bank admin covering
+        # their region. There's no lat/lng on waste_bank accounts yet, so
+        # "nearest" is really just "covers my region" — first match wins.
+        user_region_id = conn.execute(
+            select(users.c.region_id).where(users.c.id == current_user.id)
+        ).scalar_one_or_none()
+
+        waste_bank_row = None
+        if user_region_id is not None:
+            waste_bank_row = conn.execute(
+                select(users.c.id, users.c.name, users.c.address, regions.c.id, regions.c.name)
+                .select_from(
+                    waste_bank_regions.join(users, users.c.id == waste_bank_regions.c.user_id).join(
+                        regions, regions.c.id == waste_bank_regions.c.region_id
+                    )
+                )
+                .where(waste_bank_regions.c.region_id == user_region_id)
+                .order_by(users.c.id)
+                .limit(1)
+            ).first()
+
+        if waste_bank_row is None:
+            raise HTTPException(status_code=404, detail="No waste bank is currently assigned to your region")
+        wb_id, wb_name, wb_address, wb_region_id, wb_region_name = waste_bank_row
+
+        result = conn.execute(
+            update(waste_submissions)
+            .where(waste_submissions.c.id == submission_id, waste_submissions.c.status == "pending_choice")
+            .values(delivery_method="self_dropoff", status="pending_dropoff", dropoff_waste_bank_id=wb_id)
+        )
+        if result.rowcount == 0:
+            raise HTTPException(status_code=409, detail="Delivery method already chosen for this submission")
+
+    return DeliveryChoiceOut(
+        submission_id=submission_id,
+        status="pending_dropoff",
+        delivery_method="self_dropoff",
+        waste_bank=NearestWasteBankOut(
+            id=wb_id, name=wb_name, address=wb_address, region_id=wb_region_id, region_name=wb_region_name
+        ),
     )
 
 
@@ -253,6 +355,98 @@ def list_pending_pickups(
     ]
 
 
+@router.get("/history", response_model=list[WasteRecordOut])
+def list_waste_history(
+    status: str | None = None,
+    region_id: int | None = None,
+    user_id: int | None = None,
+    current_user: CurrentUser = Depends(get_current_user),
+) -> list[WasteRecordOut]:
+    """All waste submissions regardless of status — `pending_choice`,
+    `pending_pickup`, `pending_dropoff`, `collected`, and `dropped_off`
+    alike — not just what's still outstanding.
+
+    Visibility is role-scoped:
+      - `user`: only the caller's own submissions.
+      - `waste_bank`: submissions from users in the admin's assigned
+        region(s), both still-pending and already collected/dropped off.
+      - `authorized`: everything, optionally filtered via `?region_id=`,
+        `?user_id=`, and/or `?status=`.
+    """
+    valid_statuses = {"pending_choice", "pending_pickup", "pending_dropoff", "collected", "dropped_off"}
+    if status is not None and status not in valid_statuses:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid status filter. Must be one of {sorted(valid_statuses)}"
+        )
+
+    if current_user.role == "waste_bank" and not current_user.region_ids:
+        return []
+
+    num_objects = (
+        select(func.count(wastes.c.id))
+        .where(wastes.c.submission_id == waste_submissions.c.id)
+        .correlate(waste_submissions)
+        .scalar_subquery()
+    )
+
+    query = (
+        select(
+            waste_submissions.c.id,
+            waste_submissions.c.status,
+            waste_submissions.c.delivery_method,
+            waste_submissions.c.created_at,
+            waste_submissions.c.collected_at,
+            users.c.id,
+            users.c.name,
+            users.c.address,
+            users.c.region_id,
+            regions.c.name,
+            num_objects.label("num_objects"),
+        )
+        .select_from(
+            waste_submissions.join(users, users.c.id == waste_submissions.c.user_id).outerjoin(
+                regions, regions.c.id == users.c.region_id
+            )
+        )
+        .order_by(waste_submissions.c.created_at.desc())
+    )
+
+    if current_user.role == "user":
+        query = query.where(waste_submissions.c.user_id == current_user.id)
+    elif current_user.role == "waste_bank":
+        if region_id is not None and region_id not in current_user.region_ids:
+            raise HTTPException(status_code=403, detail="Not authorized for this region")
+        query = query.where(users.c.region_id.in_(current_user.region_ids))
+    else:  # authorized
+        if region_id is not None:
+            query = query.where(users.c.region_id == region_id)
+        if user_id is not None:
+            query = query.where(waste_submissions.c.user_id == user_id)
+
+    if status is not None:
+        query = query.where(waste_submissions.c.status == status)
+
+    with get_engine().connect() as conn:
+        rows = conn.execute(query).all()
+
+    return [
+        WasteRecordOut(
+            submission_id=row[0],
+            status=row[1],
+            delivery_method=row[2],
+            created_at=row[3],
+            collected_at=row[4],
+            num_objects=row[10],
+            user_id=row[5],
+            user_name=row[6],
+            user_address=row[7],
+            region_id=row[8],
+            region_name=row[9],
+        )
+        for row in rows
+    ]
+
+
 @router.post("/pickups/{submission_id}/collect", response_model=WasteSubmissionOut)
 def collect_pickup(
     submission_id: int,
@@ -282,6 +476,47 @@ def collect_pickup(
     return _load_submission(submission_id)
 
 
+@router.post("/dropoffs/{submission_id}/confirm", response_model=WasteSubmissionOut)
+def confirm_dropoff(
+    submission_id: int,
+    current_user: CurrentUser = Depends(require_roles("waste_bank", "authorized")),
+) -> WasteSubmissionOut:
+    """Marks a self-dropoff submission "dropped_off".
+
+    This is meant to be hit automatically by the waste_bank's intake
+    system (e.g. a QR/badge scan at the bin) the moment a user physically
+    drops their waste off — not a manual button a staff member clicks.
+    For now this is just the DB-side bookkeeping so that trigger has
+    somewhere to land; wiring up the actual device/kiosk call is a
+    follow-up.
+    """
+    with get_engine().begin() as conn:
+        row = conn.execute(
+            select(waste_submissions.c.delivery_method, waste_submissions.c.dropoff_waste_bank_id).where(
+                waste_submissions.c.id == submission_id
+            )
+        ).first()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Submission not found")
+        delivery_method, dropoff_waste_bank_id = row
+
+        if delivery_method != "self_dropoff":
+            raise HTTPException(status_code=400, detail="Submission wasn't set up for self-dropoff")
+
+        if current_user.role == "waste_bank" and dropoff_waste_bank_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to confirm drop-off for this submission")
+
+        result = conn.execute(
+            update(waste_submissions)
+            .where(waste_submissions.c.id == submission_id, waste_submissions.c.status == "pending_dropoff")
+            .values(status="dropped_off", collected_by=current_user.id, collected_at=datetime.now(timezone.utc))
+        )
+        if result.rowcount == 0:
+            raise HTTPException(status_code=409, detail="Already dropped off")
+
+    return _load_submission(submission_id)
+
+
 def _load_submission(submission_id: int) -> WasteSubmissionOut:
     with get_engine().connect() as conn:
         submission = conn.execute(
@@ -290,6 +525,9 @@ def _load_submission(submission_id: int) -> WasteSubmissionOut:
                 waste_submissions.c.user_id,
                 waste_submissions.c.created_at,
                 waste_submissions.c.status,
+                waste_submissions.c.delivery_method,
+                waste_submissions.c.scheduled_pickup_at,
+                waste_submissions.c.dropoff_waste_bank_id,
                 waste_submissions.c.segmented_image_path,
                 waste_submissions.c.results_grid_path,
             ).where(waste_submissions.c.id == submission_id)
@@ -343,6 +581,9 @@ def _load_submission(submission_id: int) -> WasteSubmissionOut:
         num_objects=len(objects),
         objects=objects,
         status=submission[3],
-        segmented_image_path=submission[4],
-        results_grid_path=submission[5],
+        delivery_method=submission[4],
+        scheduled_pickup_at=submission[5],
+        dropoff_waste_bank_id=submission[6],
+        segmented_image_path=submission[7],
+        results_grid_path=submission[8],
     )

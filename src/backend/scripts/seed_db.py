@@ -397,6 +397,9 @@ def main() -> None:
                     "created_at": m["created_at"],
                     "segmented_image_path": None,
                     "results_grid_path": None,
+                    # Synthetic data always models the pickup flow — it
+                    # already skips straight past "pending_choice".
+                    "delivery_method": "pickup",
                     "status": m["status"],
                     "collected_by": None,
                     "collected_at": None,
@@ -476,7 +479,7 @@ def main() -> None:
         waste_owner_sub = [wr["submission_id"] for wr in waste_rows]
 
         for waste_id, wr, wm, owner_sub in zip(waste_ids, waste_rows, waste_meta, waste_owner_sub):
-            start_range, end_range = compute_token_range(wr["waste_label"], wr["weight_kg"])
+            start_range, end_range = compute_token_range(wr["waste_label"], wr["weight_kg"], wr["waste_confidence"])
             used = rng.random() < 0.55
             drawn_points = None
             drawn_at = None

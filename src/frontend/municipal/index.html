@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TPA Teluk Punggur — Kapasitas</title>
+<style>
+  :root {
+    color-scheme: light;
+    /* Brand (matches the TPA Teluk Punggur mockup) */
+    --header-bg: #0b3d2e;
+    --header-bg-2: #0f4a38;
+    --accent-lime: #c7d92e;
+
+    /* Chrome tokens (dataviz skill palette.md — light) */
+    --page-bg: #f9f9f7;
+    --surface: #fcfcfb;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --gridline: #e1e0d9;
+    --border: rgba(11, 11, 11, 0.1);
+
+    /* Status meter ramps — fill / track pairs, one hue-step apart */
+    --aman-fill: #0b3d2e;
+    --aman-track: #dbe7e0;
+    --aman-text: #1a7a4c;
+    --waspada-fill: #c7d92e;
+    --waspada-track: #eef2d2;
+    --waspada-text: #7a7300;
+    --kritis-fill: #d03b3b;
+    --kritis-track: #f8dcdc;
+    --kritis-text: #c0392b;
+
+    --shadow: 0 1px 2px rgba(11, 11, 11, 0.04), 0 4px 16px rgba(11, 11, 11, 0.05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page-bg: #0d0d0d;
+      --surface: #17201c;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #8f9a94;
+      --gridline: #26312b;
+      --border: rgba(255, 255, 255, 0.1);
+      --aman-track: #22322a;
+      --waspada-track: #2c2f16;
+      --kritis-track: #3a2222;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page-bg: #0d0d0d;
+    --surface: #17201c;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8f9a94;
+    --gridline: #26312b;
+    --border: rgba(255, 255, 255, 0.1);
+    --aman-track: #22322a;
+    --waspada-track: #2c2f16;
+    --kritis-track: #3a2222;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page-bg);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    background: linear-gradient(180deg, var(--header-bg-2), var(--header-bg));
+    color: #fff;
+    padding: 14px 28px;
+  }
+  .topbar .brand { font-weight: 700; font-size: 1.05rem; white-space: nowrap; }
+  .topbar nav { display: flex; gap: 28px; flex: 1; }
+  .topbar nav button {
+    background: none; border: none; color: rgba(255, 255, 255, 0.75);
+    font: inherit; font-size: 0.92rem; cursor: pointer; padding: 6px 2px;
+    border-bottom: 2px solid transparent;
+  }
+  .topbar nav button.active { color: var(--accent-lime); border-color: var(--accent-lime); font-weight: 600; }
+  .topbar nav button:not(.active):hover { color: #fff; }
+  .topbar .icons { display: flex; align-items: center; gap: 14px; }
+  .icon-btn {
+    width: 34px; height: 34px; border-radius: 50%; border: none;
+    background: rgba(255, 255, 255, 0.12); color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 1rem;
+    position: relative;
+  }
+  .icon-btn:hover { background: rgba(255, 255, 255, 0.22); }
+  .avatar-btn {
+    width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--accent-lime);
+    background: #274b3e; color: #fff; font-weight: 700; font-size: 0.85rem;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .live-dot {
+    position: absolute; top: -2px; right: -2px; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--accent-lime); border: 2px solid var(--header-bg);
+  }
+
+  /* ---------- Main ---------- */
+  main { max-width: 1240px; margin: 0 auto; padding: 32px 28px 64px; }
+  h1 { font-size: 1.9rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .subtitle { color: var(--text-secondary); margin: 0 0 22px; font-size: 0.98rem; }
+
+  .banner {
+    display: none;
+    align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 14px; margin-bottom: 18px; font-size: 0.88rem;
+  }
+  .banner.show { display: flex; }
+  .banner.info { background: var(--aman-track); color: var(--aman-text); }
+  .banner.warn { background: var(--waspada-track); color: var(--waspada-text); }
+  .banner.error { background: var(--kritis-track); color: var(--kritis-text); }
+  .banner button {
+    margin-left: auto; border: 1px solid currentColor; background: none; color: inherit;
+    border-radius: 6px; padding: 4px 10px; font: inherit; font-size: 0.82rem; cursor: pointer;
+  }
+
+  /* ---------- Stat cards ---------- */
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 34px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .card .top-accent { height: 4px; background: var(--accent-lime); }
+  .card .top-accent.dark { background: var(--header-bg); }
+  .card .body { padding: 18px 20px 20px; }
+  .stat-label {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text-muted); font-weight: 600; margin-bottom: 14px;
+  }
+  .stat-label .badge {
+    font-size: 0.62rem; text-transform: none; letter-spacing: 0; font-weight: 600;
+    padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-secondary);
+  }
+  .stat-label .badge.live { color: var(--aman-text); border-color: var(--aman-text); }
+  .stat-icon {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--page-bg);
+    display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0;
+  }
+  .stat-value-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .stat-value { font-size: 2.1rem; font-weight: 700; line-height: 1; }
+  .stat-unit { font-size: 1rem; color: var(--text-secondary); font-weight: 500; }
+  .stat-delta { font-size: 0.85rem; font-weight: 600; }
+  .stat-delta.up-bad { color: var(--kritis-text); }
+  .stat-delta.up-good { color: var(--aman-text); }
+  .stat-sub { margin-top: 8px; font-size: 0.85rem; color: var(--text-secondary); }
+  .meter-track { margin-top: 14px; height: 8px; border-radius: 999px; background: var(--aman-track); overflow: hidden; }
+  .meter-fill { height: 100%; border-radius: 999px; background: var(--accent-lime); }
+
+  /* ---------- Section header ---------- */
+  .section-head {
+    display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 14px;
+  }
+  .section-head h2 { font-size: 1.25rem; margin: 0; }
+  .section-meta { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: var(--text-muted); }
+  .section-meta button {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary);
+    border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 0.78rem; cursor: pointer;
+  }
+  .section-meta button:hover { color: var(--text-primary); }
+
+  /* ---------- Region grid ---------- */
+  .region-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .region-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: var(--shadow); padding: 16px 18px 18px;
+  }
+  .region-card.locked { opacity: 0.55; }
+  .region-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .region-card-head .name { font-weight: 700; font-size: 0.95rem; }
+  .rate-badge {
+    font-size: 0.72rem; color: var(--text-secondary); background: var(--page-bg);
+    border-radius: 999px; padding: 3px 9px; white-space: nowrap; flex-shrink: 0;
+  }
+  .region-pct-row { display: flex; align-items: baseline; justify-content: space-between; }
+  .region-pct { font-size: 1.5rem; font-weight: 700; }
+  .region-status { font-size: 0.8rem; font-weight: 700; }
+  .region-meter { margin-top: 8px; height: 7px; border-radius: 999px; overflow: hidden; }
+  .region-note { margin-top: 8px; font-size: 0.75rem; color: var(--text-muted); }
+
+  .skeleton { animation: pulse 1.3s ease-in-out infinite; background: var(--gridline); border-radius: 6px; color: transparent !important; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  footer.foot-note {
+    margin-top: 30px; font-size: 0.78rem; color: var(--text-muted); line-height: 1.6;
+    border-top: 1px solid var(--gridline); padding-top: 14px;
+  }
+
+  /* ---------- Modals ---------- */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(11, 11, 11, 0.45);
+    align-items: center; justify-content: center; z-index: 50; padding: 16px;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--surface); color: var(--text-primary); border-radius: 14px;
+    width: 100%; max-width: 380px; padding: 22px; box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+  .modal h3 { margin: 0 0 4px; font-size: 1.1rem; }
+  .modal p.hint { margin: 0 0 16px; font-size: 0.82rem; color: var(--text-secondary); }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 4px; }
+  .field input {
+    width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--page-bg); color: var(--text-primary); font: inherit; font-size: 0.9rem;
+  }
+  .modal-actions { display: flex; gap: 8px; margin-top: 18px; }
+  .btn {
+    flex: 1; padding: 10px; border-radius: 8px; border: none; font: inherit; font-weight: 600;
+    font-size: 0.88rem; cursor: pointer;
+  }
+  .btn.primary { background: var(--header-bg); color: #fff; }
+  .btn.primary:hover { background: var(--header-bg-2); }
+  .btn.ghost { background: none; border: 1px solid var(--border); color: var(--text-secondary); }
+  .modal .error-line { color: var(--kritis-text); font-size: 0.8rem; margin-top: 8px; display: none; }
+  .modal .error-line.show { display: block; }
+  .modal .close-x {
+    float: right; border: none; background: none; color: var(--text-muted); cursor: pointer; font-size: 1rem;
+  }
+
+  @media (max-width: 900px) {
+    .stat-row { grid-template-columns: 1fr; }
+    .region-grid { grid-template-columns: repeat(2, 1fr); }
+    .topbar nav { display: none; }
+  }
+  @media (max-width: 560px) {
+    .region-grid { grid-template-columns: 1fr; }
+    main { padding: 24px 16px 48px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">TPA Teluk Punggur</div>
+  <nav>
+    <button class="active" type="button">Kapasitas</button>
+    <button type="button" data-soon>Beranda</button>
+    <button type="button" data-soon>Statistik</button>
+    <button type="button" data-soon>Laporan</button>
+  </nav>
+  <div class="icons">
+    <button class="icon-btn" type="button" title="Notifikasi">🔔</button>
+    <button class="icon-btn" id="settingsBtn" type="button" title="Pengaturan">⚙️</button>
+    <button class="avatar-btn" id="avatarBtn" type="button" title="Akun">?</button>
+  </div>
+</header>
+
+<main>
+  <h1>Real-Time Dashboard Kapasitas</h1>
+  <p class="subtitle">Pemantauan harian agregat volume sampah masuk dan estimasi sisa umur operasional per area.</p>
+
+  <div class="banner" id="banner"><span id="bannerText"></span></div>
+
+  <section class="stat-row">
+    <div class="card">
+      <div class="top-accent"></div>
+      <div class="body">
+        <div class="stat-label">
+          <span>Total Kapasitas TPA</span>
+          <span class="badge" id="capacityBadge">data manual</span>
+        </div>
+        <div class="stat-value-row">
+          <span class="stat-value" id="capacityPct">–</span>
+          <span class="stat-delta" id="capacityDelta"></span>
+        </div>
+        <div class="meter-track"><div class="meter-fill" id="capacityMeter" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="top-accent dark"></div>
+      <div class="body">
+        <div class="stat-label">
+          <span>Sampah Masuk Hari Ini</span>
+          <span class="badge live" id="todayBadge">live</span>
+        </div>
+        <div class="stat-value-row">
+          <span class="stat-value" id="todayValue">–</span>
+          <span class="stat-unit" id="todayUnit"></span>
+        </div>
+        <div class="stat-sub" id="todaySub">Memuat…</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="top-accent"></div>
+      <div class="body">
+        <div class="stat-label">
+          <span>Estimasi Sisa Umur TPA</span>
+          <span class="badge" id="lifespanBadge">data manual</span>
+        </div>
+        <div class="stat-value-row">
+          <span class="stat-value" id="lifespanValue">–</span>
+          <span class="stat-unit">Tahun</span>
+        </div>
+        <div class="stat-sub" id="lifespanSub">Berdasarkan tren volume saat ini</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-head">
+    <h2>Distribusi per Kecamatan (Batam)</h2>
+    <div class="section-meta">
+      <span id="updatedAt">Memuat data…</span>
+      <button id="refreshBtn" type="button">↻ Segarkan</button>
+    </div>
+  </div>
+
+  <section class="region-grid" id="regionGrid"><!-- filled by JS --></section>
+
+  <footer class="foot-note">
+    <strong>Sumber data:</strong> distribusi per kecamatan dan "Sampah Masuk Hari Ini" ditarik langsung dari
+    <code>GET /waste/history</code> (dan <code>GET /regions</code> untuk daftar 12 kecamatan Batam), diagregasi di
+    browser. Karena endpoint tersebut mengembalikan jumlah objek per pengajuan (<code>num_objects</code>), bukan berat,
+    tonase dihitung dengan estimasi <span id="avgKgNote">4.2 kg/objek</span> — sesuaikan di Pengaturan bila ada data
+    timbangan yang lebih akurat. "Total Kapasitas TPA" dan "Estimasi Sisa Umur TPA" masih berupa input manual karena
+    belum ada sumber data kapasitas TPA di backend; nilainya bisa diubah lewat ⚙️ Pengaturan.
+  </footer>
+</main>
+
+<!-- Login modal -->
+<div class="modal-backdrop" id="loginBackdrop">
+  <div class="modal">
+    <h3>Masuk ke Dashboard TPA</h3>
+    <p class="hint">Gunakan akun role <code>authorized</code> (kota) atau <code>waste_bank</code> (per wilayah) untuk
+      melihat data <code>/waste/history</code>.</p>
+    <form id="loginForm">
+      <div class="field"><label for="loginEmail">Email</label><input id="loginEmail" type="email" required autocomplete="username" /></div>
+      <div class="field"><label for="loginPassword">Kata sandi</label><input id="loginPassword" type="password" required autocomplete="current-password" /></div>
+      <div class="error-line" id="loginError"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" id="loginDemoBtn">Lihat demo</button>
+        <button type="submit" class="btn primary">Masuk</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-backdrop" id="settingsBackdrop">
+  <div class="modal">
+    <button class="close-x" id="settingsClose" type="button">✕</button>
+    <h3>Pengaturan</h3>
+    <p class="hint">Disimpan lokal di browser ini saja.</p>
+    <div class="field"><label for="cfgApiBase">API base URL</label><input id="cfgApiBase" type="text" placeholder="http://localhost:8000/api/v1" /></div>
+    <div class="field"><label for="cfgAvgKg">Estimasi berat rata-rata per objek (kg)</label><input id="cfgAvgKg" type="number" step="0.1" min="0.1" /></div>
+    <div class="field"><label for="cfgCapacityPct">Kapasitas TPA saat ini (%) — manual</label><input id="cfgCapacityPct" type="number" step="0.1" min="0" max="100" /></div>
+    <div class="field"><label for="cfgCapacityTrend">Tren kapasitas 30 hari (%, boleh negatif) — manual</label><input id="cfgCapacityTrend" type="number" step="0.1" /></div>
+    <div class="field"><label for="cfgLifespanYears">Estimasi sisa umur (tahun) — manual</label><input id="cfgLifespanYears" type="number" step="0.1" min="0" /></div>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" id="logoutBtn">Keluar akun</button>
+      <button type="button" class="btn primary" id="settingsSave">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* =========================================================================
+   * CONFIG — everything an ops team should be able to tune without a
+   * redeploy lives here, mirrored into localStorage via the Settings modal.
+   *
+   * Only two things in this dashboard are NOT computed from live API data:
+   *   - capacityPct / capacityTrendPct / lifespanYears — the schema has no
+   *     TPA capacity/tonnage table anywhere (see app/db.py), so these stay
+   *     manual ops inputs until that data source exists.
+   *   - avgKgPerObject — /waste/history exposes num_objects, not weight, so
+   *     converting object counts to tonnage needs an assumed average.
+   * Everything else (per-kecamatan load, today's volume, peak arrival
+   * window) is aggregated client-side from GET /waste/history + GET /regions.
+   * ======================================================================= */
+  const DEFAULT_CONFIG = {
+    apiBase: "http://localhost:8000/api/v1",
+    avgKgPerObject: 4.2,
+    capacityPct: 85,
+    capacityTrendPct: 2.1,
+    lifespanYears: 2.4,
+  };
+
+  const STORAGE_KEYS = { config: "pilahin_municipal_config", token: "pilahin_municipal_token" };
+
+  function loadConfig() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.config) || "{}");
+      return { ...DEFAULT_CONFIG, ...saved };
+    } catch {
+      return { ...DEFAULT_CONFIG };
+    }
+  }
+  function saveConfig(cfg) { localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(cfg)); }
+
+  const REGION_ORDER = [
+    "Batam Kota", "Batu Aji", "Batu Ampar", "Belakang Padang", "Bengkong", "Bulang",
+    "Galang", "Lubuk Baja", "Nongsa", "Sagulung", "Sei Beduk", "Sekupang",
+  ];
+
+  // Used only when the API can't be reached at all, so the page still
+  // demonstrates the real rendering/aggregation path standalone.
+  const DEMO_REGIONS = REGION_ORDER.map((name, i) => ({ id: i + 1, name }));
+  const DEMO_HISTORY = (() => {
+    const now = new Date();
+    const rows = [];
+    let sid = 1000;
+    // Total submissions per region over the trailing 30 days (roughly
+    // matches the mockup's spread of busy vs. quiet kecamatan) — picked as
+    // a total-then-scattered count rather than a per-day rate, since a
+    // small per-day rate rounds down to zero for most days/regions.
+    const totals = [95, 60, 40, 12, 55, 8, 10, 42, 30, 80, 48, 52];
+    REGION_ORDER.forEach((name, idx) => {
+      const region_id = idx + 1;
+      for (let k = 0; k < totals[idx]; k++) {
+        const created = new Date(now);
+        created.setDate(created.getDate() - Math.floor(Math.random() * 30));
+        created.setHours(9 + Math.floor(Math.random() * 9), Math.floor(Math.random() * 60));
+        rows.push({
+          submission_id: sid++,
+          status: "collected",
+          delivery_method: "pickup",
+          created_at: created.toISOString(),
+          collected_at: created.toISOString(),
+          num_objects: 1 + Math.floor(Math.random() * 3),
+          user_id: 1,
+          user_name: "Demo",
+          user_address: null,
+          region_id,
+          region_name: name,
+        });
+      }
+    });
+    return rows;
+  })();
+
+  /* ========================================================================
+   * STATE
+   * ===================================================================== */
+  const state = { config: loadConfig(), token: localStorage.getItem(STORAGE_KEYS.token) || null, demoMode: false };
+
+  /* ========================================================================
+   * DOM helpers
+   * ===================================================================== */
+  const $ = (id) => document.getElementById(id);
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function showBanner(kind, text, { retry = false } = {}) {
+    const el = $("banner");
+    el.className = "banner show " + kind;
+    $("bannerText").textContent = text;
+    const existingBtn = el.querySelector("button");
+    if (existingBtn) existingBtn.remove();
+    if (retry) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "Coba lagi";
+      btn.onclick = () => loadDashboard();
+      el.appendChild(btn);
+    }
+  }
+  function hideBanner() { $("banner").className = "banner"; }
+
+  function formatMass(kg) {
+    if (kg <= 0) return { value: "0", unit: "kg" };
+    if (kg >= 1000) return { value: (kg / 1000).toFixed(1), unit: "Ton" };
+    return { value: kg >= 10 ? Math.round(kg).toString() : kg.toFixed(1), unit: "kg" };
+  }
+
+  function decodeJwt(token) {
+    try {
+      const payload = token.split(".")[1];
+      const json = decodeURIComponent(
+        atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
+          .split("")
+          .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+          .join("")
+      );
+      return JSON.parse(json);
+    } catch {
+      return null;
+    }
+  }
+
+  /* ========================================================================
+   * API
+   * ===================================================================== */
+  async function apiFetch(path, opts = {}) {
+    const headers = { ...(opts.headers || {}) };
+    if (state.token) headers["Authorization"] = "Bearer " + state.token;
+    const res = await fetch(state.config.apiBase.replace(/\/$/, "") + path, { ...opts, headers });
+    if (res.status === 401) {
+      state.token = null;
+      localStorage.removeItem(STORAGE_KEYS.token);
+      const err = new Error("unauthorized");
+      err.status = 401;
+      throw err;
+    }
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { detail = (await res.json()).detail || detail; } catch { /* ignore */ }
+      const err = new Error(detail);
+      err.status = res.status;
+      throw err;
+    }
+    return res.json();
+  }
+
+  async function login(email, password) {
+    const body = new URLSearchParams({ username: email, password, grant_type: "password" });
+    const res = await fetch(state.config.apiBase.replace(/\/$/, "") + "/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    if (!res.ok) {
+      let detail = "Email atau kata sandi salah.";
+      try { detail = (await res.json()).detail || detail; } catch { /* ignore */ }
+      throw new Error(detail);
+    }
+    const data = await res.json();
+    state.token = data.access_token;
+    localStorage.setItem(STORAGE_KEYS.token, state.token);
+  }
+
+  /* ========================================================================
+   * AGGREGATION — pure functions over GET /waste/history + GET /regions
+   * ===================================================================== */
+  function startOfLocalDay(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  function aggregateByRegion(history, regions, avgKgPerObject, windowDays = 30) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - windowDays);
+
+    const totals = new Map(); // region_id -> objects in window
+    let unassigned = 0;
+    for (const row of history) {
+      const created = new Date(row.created_at);
+      if (created < cutoff) continue;
+      if (row.region_id == null) { unassigned += row.num_objects; continue; }
+      totals.set(row.region_id, (totals.get(row.region_id) || 0) + row.num_objects);
+    }
+
+    const maxObjects = Math.max(1, ...Array.from(totals.values(), (v) => v));
+
+    const rows = regions.map((r) => {
+      const objects = totals.get(r.id) || 0;
+      const kgPerDay = (objects * avgKgPerObject) / windowDays;
+      const loadPct = Math.round((objects / maxObjects) * 100);
+      let status = "aman";
+      if (loadPct >= 80) status = "kritis";
+      else if (loadPct >= 50) status = "waspada";
+      return { ...r, objects, kgPerDay, loadPct, status };
+    });
+
+    return { rows, unassigned };
+  }
+
+  function computeToday(history, avgKgPerObject) {
+    const todayStart = startOfLocalDay(new Date());
+    const todays = history.filter((r) => new Date(r.created_at) >= todayStart);
+    const objects = todays.reduce((sum, r) => sum + r.num_objects, 0);
+    const kg = objects * avgKgPerObject;
+
+    const bucket = todays.length ? todays : history; // fall back to all-time if nothing today yet
+    const hourCounts = new Array(24).fill(0);
+    for (const r of bucket) hourCounts[new Date(r.created_at).getHours()]++;
+
+    let bestStart = 0, bestCount = -1;
+    for (let h = 0; h <= 22; h++) {
+      const c = hourCounts[h] + hourCounts[h + 1];
+      if (c > bestCount) { bestCount = c; bestStart = h; }
+    }
+    const pad = (n) => String(n).padStart(2, "0");
+    const peakLabel = bestCount > 0 ? `${pad(bestStart)}:00 - ${pad(bestStart + 2)}:00` : "belum ada data";
+
+    return { objects, kg, submissionCount: todays.length, peakLabel, usingToday: todays.length > 0 };
+  }
+
+  /* ========================================================================
+   * RENDER
+   * ===================================================================== */
+  function renderRegionSkeleton() {
+    const grid = $("regionGrid");
+    grid.innerHTML = REGION_ORDER.map(
+      () => `<div class="region-card">
+        <div class="region-card-head"><span class="name skeleton">Kecamatan</span><span class="rate-badge skeleton">00 kg/hari</span></div>
+        <div class="region-pct-row"><span class="region-pct skeleton">00%</span></div>
+        <div class="meter-track"><div class="meter-fill" style="width:40%"></div></div>
+      </div>`
+    ).join("");
+  }
+
+  function renderRegionGrid(aggregated, scopeRegionIds) {
+    const grid = $("regionGrid");
+    const sorted = [...aggregated.rows].sort((a, b) => a.name.localeCompare(b.name));
+    grid.innerHTML = sorted
+      .map((r) => {
+        const locked = scopeRegionIds && !scopeRegionIds.includes(r.id);
+        const mass = formatMass(r.kgPerDay);
+        const statusLabel = { aman: "Aman", waspada: "Waspada", kritis: "Kritis" }[r.status];
+        return `<div class="region-card ${locked ? "locked" : ""}">
+          <div class="region-card-head">
+            <span class="name">${escapeHtml(r.name)}</span>
+            <span class="rate-badge">${mass.value} ${mass.unit}/hari</span>
+          </div>
+          <div class="region-pct-row">
+            <span class="region-pct">${locked ? "—" : r.loadPct + "%"}</span>
+            <span class="region-status" style="color:var(--${r.status}-text)">${locked ? "" : statusLabel}</span>
+          </div>
+          <div class="meter-track" style="background:var(--${r.status}-track)">
+            <div class="meter-fill" style="width:${locked ? 0 : r.loadPct}%;background:var(--${r.status}-fill)"></div>
+          </div>
+          ${locked ? '<div class="region-note">Di luar cakupan akun ini</div>' : ""}
+        </div>`;
+      })
+      .join("");
+  }
+
+  function renderToday(today) {
+    const mass = formatMass(today.kg);
+    $("todayValue").textContent = mass.value;
+    $("todayUnit").textContent = mass.unit;
+    $("todaySub").textContent = today.usingToday
+      ? `${today.submissionCount} pengajuan · Puncak kedatangan: ${today.peakLabel}`
+      : `Belum ada pengajuan hari ini · Puncak historis: ${today.peakLabel}`;
+  }
+
+  function renderCapacity(cfg) {
+    $("capacityPct").textContent = cfg.capacityPct.toFixed(1) + "%";
+    $("capacityMeter").style.width = Math.min(100, Math.max(0, cfg.capacityPct)) + "%";
+    const up = cfg.capacityTrendPct >= 0;
+    const delta = $("capacityDelta");
+    delta.textContent = `${up ? "↗" : "↘"} ${up ? "+" : ""}${cfg.capacityTrendPct.toFixed(1)}% (30 hari)`;
+    delta.className = "stat-delta " + (up ? "up-bad" : "up-good");
+    $("lifespanValue").textContent = cfg.lifespanYears.toFixed(1);
+    $("avgKgNote").textContent = `${cfg.avgKgPerObject} kg/objek`;
+  }
+
+  function renderAccount() {
+    const btn = $("avatarBtn");
+    if (!state.token) { btn.textContent = "?"; btn.title = "Belum masuk — klik untuk login"; return; }
+    const payload = decodeJwt(state.token);
+    const label = payload?.email || "Akun";
+    btn.textContent = label.slice(0, 1).toUpperCase();
+    btn.title = `${label} (${payload?.role || "?"}) — klik untuk keluar`;
+  }
+
+  /* ========================================================================
+   * MAIN LOAD FLOW
+   * ===================================================================== */
+  async function loadDashboard() {
+    hideBanner();
+    renderCapacity(state.config);
+    renderAccount();
+    renderRegionSkeleton();
+    $("updatedAt").textContent = "Memuat data…";
+
+    let regions, history, scopeRegionIds = null;
+    try {
+      regions = await apiFetch("/regions");
+      history = await apiFetch("/waste/history");
+      state.demoMode = false;
+
+      const payload = state.token ? decodeJwt(state.token) : null;
+      if (payload?.role === "waste_bank") scopeRegionIds = payload.region_ids || [];
+      if (payload?.role === "user") {
+        showBanner("warn", "Akun ini berperan 'user' — /waste/history hanya mengembalikan pengajuan milik akun ini, bukan data kota. Masuk dengan akun 'authorized' atau 'waste_bank' untuk gambaran penuh.");
+      }
+    } catch (err) {
+      if (err.status === 401) {
+        openLoginModal();
+        $("updatedAt").textContent = "Menunggu login…";
+        return;
+      }
+      // Network/CORS failure (e.g. backend not running) — fall back to demo
+      // data so the page still demonstrates the real rendering path.
+      regions = DEMO_REGIONS;
+      history = DEMO_HISTORY;
+      state.demoMode = true;
+      showBanner("error", `Tidak dapat menghubungi API di ${state.config.apiBase} (${err.message}). Menampilkan data demo — cek ⚙️ Pengaturan atau jalankan backend lokal.`, { retry: true });
+    }
+
+    const aggregated = aggregateByRegion(history, regions.length ? regions : DEMO_REGIONS, state.config.avgKgPerObject);
+    renderRegionGrid(aggregated, scopeRegionIds);
+    renderToday(computeToday(history, state.config.avgKgPerObject));
+
+    if (state.demoMode) {
+      $("updatedAt").textContent = "Data demo — bukan data langsung";
+    } else {
+      $("updatedAt").textContent = "Diperbarui " + new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+    }
+  }
+
+  /* ========================================================================
+   * MODALS + EVENTS
+   * ===================================================================== */
+  function openLoginModal() { $("loginBackdrop").classList.add("show"); }
+  function closeLoginModal() { $("loginBackdrop").classList.remove("show"); $("loginError").classList.remove("show"); }
+  function openSettingsModal() {
+    $("cfgApiBase").value = state.config.apiBase;
+    $("cfgAvgKg").value = state.config.avgKgPerObject;
+    $("cfgCapacityPct").value = state.config.capacityPct;
+    $("cfgCapacityTrend").value = state.config.capacityTrendPct;
+    $("cfgLifespanYears").value = state.config.lifespanYears;
+    $("settingsBackdrop").classList.add("show");
+  }
+  function closeSettingsModal() { $("settingsBackdrop").classList.remove("show"); }
+
+  $("settingsBtn").addEventListener("click", openSettingsModal);
+  $("settingsClose").addEventListener("click", closeSettingsModal);
+  $("settingsBackdrop").addEventListener("click", (e) => { if (e.target.id === "settingsBackdrop") closeSettingsModal(); });
+
+  $("settingsSave").addEventListener("click", () => {
+    state.config = {
+      apiBase: $("cfgApiBase").value.trim() || DEFAULT_CONFIG.apiBase,
+      avgKgPerObject: parseFloat($("cfgAvgKg").value) || DEFAULT_CONFIG.avgKgPerObject,
+      capacityPct: parseFloat($("cfgCapacityPct").value) || 0,
+      capacityTrendPct: parseFloat($("cfgCapacityTrend").value) || 0,
+      lifespanYears: parseFloat($("cfgLifespanYears").value) || 0,
+    };
+    saveConfig(state.config);
+    closeSettingsModal();
+    loadDashboard();
+  });
+
+  $("logoutBtn").addEventListener("click", () => {
+    state.token = null;
+    localStorage.removeItem(STORAGE_KEYS.token);
+    closeSettingsModal();
+    loadDashboard();
+  });
+
+  $("avatarBtn").addEventListener("click", () => { if (state.token) $("logoutBtn").click(); else openLoginModal(); });
+
+  $("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errEl = $("loginError");
+    errEl.classList.remove("show");
+    try {
+      await login($("loginEmail").value.trim(), $("loginPassword").value);
+      closeLoginModal();
+      loadDashboard();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.classList.add("show");
+    }
+  });
+
+  $("loginDemoBtn").addEventListener("click", () => {
+    closeLoginModal();
+    state.demoMode = true;
+    const regions = DEMO_REGIONS, history = DEMO_HISTORY;
+    const aggregated = aggregateByRegion(history, regions, state.config.avgKgPerObject);
+    renderRegionGrid(aggregated, null);
+    renderToday(computeToday(history, state.config.avgKgPerObject));
+    renderCapacity(state.config);
+    showBanner("info", "Menampilkan data demo (tanpa login). Masuk dengan akun 'authorized' atau 'waste_bank' untuk data langsung dari /waste/history.");
+    $("updatedAt").textContent = "Data demo — bukan data langsung";
+  });
+
+  $("refreshBtn").addEventListener("click", loadDashboard);
+  document.querySelectorAll("[data-soon]").forEach((btn) =>
+    btn.addEventListener("click", () => showBanner("info", `"${btn.textContent}" belum tersedia di iterasi ini.`))
+  );
+
+  loadDashboard();
+})();
+</script>
+</body>
+</html>

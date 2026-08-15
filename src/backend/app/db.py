@@ -68,10 +68,25 @@ waste_submissions = Table(
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("segmented_image_path", String, nullable=True),
     Column("results_grid_path", String, nullable=True),
-    Column("status", String, nullable=False, server_default="pending_pickup"),
+    # Set once the user picks how they're getting rid of this submission's
+    # waste, via POST /waste/submissions/{id}/delivery-method.
+    Column("delivery_method", String, nullable=True),
+    # 'pickup' only: the slot handed back by the delivery-method choice
+    # (see app/services/pickup_scheduler.py).
+    Column("scheduled_pickup_at", DateTime(timezone=True), nullable=True),
+    # 'self_dropoff' only: the waste_bank admin the user was pointed to.
+    Column("dropoff_waste_bank_id", Integer, ForeignKey("users.id"), nullable=True),
+    Column("status", String, nullable=False, server_default="pending_choice"),
     Column("collected_by", Integer, ForeignKey("users.id"), nullable=True),
     Column("collected_at", DateTime(timezone=True), nullable=True),
-    CheckConstraint("status IN ('pending_pickup', 'collected')", name="ck_waste_submissions_status"),
+    CheckConstraint(
+        "status IN ('pending_choice', 'pending_pickup', 'pending_dropoff', 'collected', 'dropped_off')",
+        name="ck_waste_submissions_status",
+    ),
+    CheckConstraint(
+        "delivery_method IS NULL OR delivery_method IN ('pickup', 'self_dropoff')",
+        name="ck_waste_submissions_delivery_method",
+    ),
 )
 
 # One row per object detected in a submission's photo — a real entity

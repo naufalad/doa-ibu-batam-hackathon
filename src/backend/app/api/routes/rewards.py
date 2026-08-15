@@ -12,7 +12,18 @@ router = APIRouter(prefix="/rewards", tags=["rewards"])
 
 @router.get("", response_model=list[RewardOut])
 def list_rewards() -> list[RewardOut]:
-    return []
+    with get_engine().connect() as conn:
+        rows = conn.execute(
+            select(
+                rewards_table.c.id,
+                rewards_table.c.name,
+                rewards_table.c.description,
+                rewards_table.c.cost_points,
+                rewards_table.c.stock,
+            )
+        ).all()
+
+    return [RewardOut(id=row[0], name=row[1], description=row[2], cost_points=row[3], stock=row[4]) for row in rows]
 
 
 @router.post("/redeem", response_model=RedemptionOut, status_code=status.HTTP_201_CREATED)

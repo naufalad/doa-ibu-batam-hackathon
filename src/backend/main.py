@@ -32,8 +32,9 @@ TAGS_METADATA = [
     {
         "name": "waste",
         "description": "Waste-sorting photo submissions, run through the "
-        "segmentation + classification pipeline, plus the region-scoped "
-        "pickup workflow for waste_bank/authorized accounts.",
+        "segmentation + classification pipeline, the pickup-vs-dropoff "
+        "delivery choice, and the region-scoped pickup/dropoff workflow "
+        "for waste_bank/authorized accounts.",
     },
     {"name": "rewards", "description": "Rewards catalog and point redemptions."},
     {
