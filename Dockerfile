@@ -33,9 +33,8 @@ WORKDIR /app
 # default PyPI wheels pull in CUDA libraries nothing here uses, ballooning
 # the image for no benefit since APP_ML_DEVICE defaults to "cpu".
 COPY src/backend/requirements.txt ./requirements.txt
-COPY src/backend/pipeline/requirements.txt ./pipeline-requirements.txt
 RUN pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision \
-    && pip install -r requirements.txt -r pipeline-requirements.txt
+    && pip install -r requirements.txt
 
 # Pre-download & cache the two HF model checkpoints the pipeline loads
 # lazily on first /waste/submit call (see
