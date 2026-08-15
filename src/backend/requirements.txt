@@ -14,13 +14,10 @@ pyjwt  # signs/verifies the JWTs issued by /auth/login (see app/core/security.py
 sqlalchemy>=2.0  # Core (Table/select/insert/update) — see app/db.py; no ORM
 psycopg[binary]>=3.1  # PostgreSQL driver for the sqlalchemy "postgresql+psycopg" dialect
 
-# ML pipeline deps (pipeline/segment_classify.py). Commented out rather
-# than a live `-r`: the Dockerfile installs it as a separate explicit
-# `-r pipeline-requirements.txt` arg instead, since this file gets
-# flattened to /app/requirements.txt during the image build and a nested
-# `-r pipeline/requirements.txt` there would resolve to a path that
-# doesn't exist at that build step. Install manually for local dev:
-#   pip install -r src/backend/requirements.txt -r src/backend/pipeline/requirements.txt
+# ML pipeline deps (pipeline/segment_classify.py), inlined directly here
+# (rather than a separate pipeline/requirements.txt) since this file gets
+# flattened to /app/requirements.txt during the Docker build, where a
+# nested `-r pipeline/requirements.txt` reference wouldn't resolve.
 torch
 torchvision
 transformers>=4.40

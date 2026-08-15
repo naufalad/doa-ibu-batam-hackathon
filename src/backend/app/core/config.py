@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # PostgreSQL via SQLAlchemy Core (see app/db.py). The "postgresql+psycopg"
     # dialect selects the psycopg (v3) driver. `docker-compose.yml` runs a
     # matching postgres service for this default to work out of the box.
-    database_url: str = "postgresql+psycopg://postgres:@localhost:5432/pilahin"
+    database_url: str = ""
 
     # Waste classification pipeline (see pipeline/segment_classify.py)
     ml_device: str = "cpu"  # "cpu" | "mps" | "cuda"
