@@ -21,4 +21,4 @@ psycopg[binary]>=3.1  # PostgreSQL driver for the sqlalchemy "postgresql+psycopg
 # `-r pipeline/requirements.txt` there would resolve to a path that
 # doesn't exist at that build step. Install manually for local dev:
 #   pip install -r src/backend/requirements.txt -r src/backend/pipeline/requirements.txt
-# -r pipeline/requirements.txt
+-r pipeline/requirements.txt
