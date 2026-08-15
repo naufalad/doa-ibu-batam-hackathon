@@ -60,19 +60,34 @@ class WasteClassifierService:
         score_threshold: float = 0.5,
         min_area_frac: float = 0.0015,
         topk: int = 3,
+        save_dir: str | Path | None = None,
+        save_stem: str | None = None,
     ) -> dict[str, Any]:
         """Run the segment -> crop -> classify pipeline on one image.
 
         Returns a JSON-serializable report shaped like:
             {"image": ..., "image_size": [w, h], "num_objects": N, "objects": [...]}
         matching `app.schemas.waste.WasteObjectPrediction` per object. This
-        mirrors `segment_classify.run()`'s report but skips writing the
-        overlay/grid/crop image files to disk, since the API only needs the
-        JSON for now.
+        mirrors `segment_classify.run()`'s report but, by default, skips
+        writing the overlay/grid/crop image files to disk since the API only
+        needs the JSON for most callers.
+
+        Pass `save_dir` to additionally render and save the annotated overlay
+        image and the results-grid contact sheet into that directory (created
+        if missing), matching what `segment_classify.run()` writes for the
+        CLI. The saved paths are added to the returned report as
+        `segmented_image_path` / `results_grid_path`. `save_stem` controls
+        the output filename prefix (defaults to the input file's stem).
         """
         self._ensure_loaded()
 
-        from segment_classify import classify_crop, crop_instance, segment_instances
+        from segment_classify import (
+            build_results_grid,
+            classify_crop,
+            crop_instance,
+            draw_overlay,
+            segment_instances,
+        )
 
         image = Image.open(image_path).convert("RGB")
 
@@ -86,8 +101,9 @@ class WasteClassifierService:
         )
 
         objects: list[dict[str, Any]] = []
+        render_results: list[dict[str, Any]] = []
         for idx, inst in enumerate(instances, start=1):
-            masked_crop, _raw_crop = crop_instance(image, inst)
+            masked_crop, raw_crop = crop_instance(image, inst)
             waste_preds = classify_crop(masked_crop, self._cls_processor, self._cls_model, self.device, topk)
             top = waste_preds[0]
             objects.append(
@@ -101,10 +117,35 @@ class WasteClassifierService:
                     "waste_topk": [{"label": p["label"], "prob": round(p["prob"], 4)} for p in waste_preds],
                 }
             )
+            if save_dir is not None:
+                render_results.append(
+                    {
+                        **inst,
+                        "raw_crop": raw_crop,
+                        "waste_label": top["label"],
+                        "waste_prob": top["prob"],
+                    }
+                )
 
-        return {
+        report: dict[str, Any] = {
             "image": image_path,
             "image_size": [image.width, image.height],
             "num_objects": len(objects),
             "objects": objects,
         }
+
+        if save_dir is not None:
+            save_dir = Path(save_dir)
+            save_dir.mkdir(parents=True, exist_ok=True)
+            stem = save_stem or Path(image_path).stem
+
+            overlay_path = save_dir / f"{stem}_segmented.jpg"
+            draw_overlay(image, render_results).save(overlay_path, quality=92)
+
+            grid_path = save_dir / f"{stem}_results_grid.jpg"
+            build_results_grid(render_results).save(grid_path, quality=92)
+
+            report["segmented_image_path"] = str(overlay_path)
+            report["results_grid_path"] = str(grid_path)
+
+        return report

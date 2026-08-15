@@ -23,5 +23,7 @@ class WasteSubmissionOut(BaseModel):
     num_objects: int
     objects: list[WasteObjectPrediction]
     points_awarded: int
+    segmented_image_path: str | None = None
+    results_grid_path: str | None = None
 
     model_config = {"from_attributes": True}

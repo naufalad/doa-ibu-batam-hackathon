@@ -10,6 +10,7 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
@@ -41,10 +42,17 @@ async def submit_waste_photo(
         shutil.copyfileobj(file.file, tmp)
         tmp_path = Path(tmp.name)
 
+    submitted_at = datetime.now(timezone.utc)
+    stem = f"{submitted_at:%Y%m%dT%H%M%S}_{uuid4().hex[:8]}"
+
     try:
         classifier = WasteClassifierService.get(device=settings.ml_device)
         try:
-            report = classifier.classify_image(tmp_path.as_posix())
+            report = classifier.classify_image(
+                tmp_path.as_posix(),
+                save_dir=settings.waste_output_dir,
+                save_stem=stem,
+            )
         except Exception as exc:  # noqa: BLE001 - surface model/inference failures as a 502
             raise HTTPException(status_code=502, detail=f"Waste classification failed: {exc}") from exc
     finally:
@@ -67,8 +75,10 @@ async def submit_waste_photo(
     return WasteSubmissionOut(
         id=0,
         user_id=0,
-        created_at=datetime.now(timezone.utc),
+        created_at=submitted_at,
         num_objects=report["num_objects"],
         objects=objects,
         points_awarded=POINTS_PER_OBJECT * report["num_objects"],
+        segmented_image_path=report.get("segmented_image_path"),
+        results_grid_path=report.get("results_grid_path"),
     )

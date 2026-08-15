@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     # Waste classification pipeline (see pipeline/segment_classify.py)
     ml_device: str = "cpu"  # "cpu" | "mps" | "cuda"
 
+    # Where /waste/submit saves the rendered segmentation overlay + results
+    # grid for each submission (mirrors what segment_classify.py's CLI writes
+    # for local runs). Relative to the process's working directory.
+    waste_output_dir: str = "src/backend/pipeline/images/output"
+
     # LLM report generation (see app/services/llm/ and /report endpoint).
     # "openai" | "claude" | "ollama" — defaults to a local Ollama daemon so
     # /report works out of the box without any API key during development.
