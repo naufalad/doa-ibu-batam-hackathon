@@ -9,9 +9,9 @@ from __future__ import annotations
 from collections import Counter
 from datetime import datetime, timezone
 
-from src.backend.app.core.config import Settings
-from src.backend.app.schemas.report import TransactionSummary, UserReportOut
-from src.backend.app.services.llm import get_llm_provider
+from app.core.config import Settings
+from app.schemas.report import TransactionSummary, UserReportOut
+from app.services.llm import get_llm_provider
 
 SYSTEM_PROMPT = (
     "You are a friendly waste-sorting coach for Pilahin, an app that rewards "

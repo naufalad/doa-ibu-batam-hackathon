@@ -60,6 +60,12 @@ RUN useradd --create-home --uid 1000 appuser \
     && chown -R appuser:appuser /app
 USER appuser
 
+# src/backend is self-contained (main.py + requirements.txt + app/ all
+# resolve relative to this directory) — same layout Vercel expects when its
+# Root Directory is set to src/backend. Run from here so `app.*` imports
+# inside main.py resolve without needing the repo root on PYTHONPATH.
+WORKDIR /app/src/backend
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
@@ -67,4 +73,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
 
 # Honors $PORT (Railway/Render/Cloud Run style platforms) and falls back to
 # 8000 otherwise. No --reload (that's dev-only, see src/backend/main.py).
-CMD ["sh", "-c", "uvicorn src.backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

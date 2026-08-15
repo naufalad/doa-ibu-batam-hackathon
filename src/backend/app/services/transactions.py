@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from src.backend.app.schemas.report import TransactionSummary
+from app.schemas.report import TransactionSummary
 
 _MOCK_TRANSACTIONS = [
     TransactionSummary(date=datetime.now(timezone.utc) - timedelta(days=1), waste_label="plastic", num_objects=4, points_awarded=40),

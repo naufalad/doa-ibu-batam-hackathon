@@ -1,14 +1,26 @@
-"""FastAPI application factory for Pilahin."""
+"""FastAPI application factory + entrypoint for Pilahin.
+
+Lives at the `src/backend` root (next to `requirements.txt`, sibling to the
+`app` package) rather than inside `app/`, so this directory is self-contained
+for both `uvicorn main:app` (Docker/Vercel, cwd = src/backend) and local dev
+(`python main.py`, also from src/backend). Importing it as a script or as
+`main:app` — never as `app.main`, and never by running a file inside `app/`
+directly — is what keeps these as absolute imports instead of relative ones.
+
+Prod: uvicorn main:app --host 0.0.0.0 --port 8000
+Dev:  python main.py   # auto-reload
+"""
 
 from contextlib import asynccontextmanager
 
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .app.api.routes import auth, health, regions, report, rewards, waste
-from .app.api.routes import users
-from .app.core.config import get_settings
-from .app.db import init_db
+from app.api.routes import auth, health, regions, report, rewards, waste
+from app.api.routes import users
+from app.core.config import get_settings
+from app.db import init_db
 
 TAGS_METADATA = [
     {"name": "health", "description": "Liveness/readiness check."},
@@ -76,7 +88,5 @@ def create_app() -> FastAPI:
 
 app = create_app()
 
-import uvicorn
-
 if __name__ == "__main__":
-    uvicorn.run("src.backend.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

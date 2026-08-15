@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from src.backend.app.core.config import Settings
+from app.core.config import Settings
 
 from .base import LLMProvider, LLMProviderError
 from .claude_provider import ClaudeProvider

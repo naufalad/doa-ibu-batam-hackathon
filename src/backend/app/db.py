@@ -26,7 +26,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Engine
 
-from src.backend.app.core.config import get_settings
+from app.core.config import get_settings
 
 metadata = MetaData()
 

@@ -3,9 +3,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import insert, select, update
 
-from src.backend.app.api.deps import CurrentUser, require_roles
-from src.backend.app.db import get_engine, redemptions, rewards as rewards_table, users
-from src.backend.app.schemas.reward import RedemptionCreate, RedemptionOut, RewardOut
+from app.api.deps import CurrentUser, require_roles
+from app.db import get_engine, redemptions, rewards as rewards_table, users
+from app.schemas.reward import RedemptionCreate, RedemptionOut, RewardOut
 
 router = APIRouter(prefix="/rewards", tags=["rewards"])
 

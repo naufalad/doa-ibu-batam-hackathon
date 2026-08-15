@@ -11,10 +11,14 @@ Rewards could be a ticket for point gambling, or a privilege for the segregated 
 
 ```
 doa-ibu-batam-hackathon/
-├── requirements.txt        # top-level Python deps (venv for the whole repo)
 └── src/
-    ├── backend/             # FastAPI service
-    │   ├── main.py / app/main.py   # entrypoint (`python -m src.backend.app.main`)
+    ├── backend/             # FastAPI service — self-contained: main.py +
+    │   │                    # requirements.txt + app/ all live here and
+    │   │                    # resolve relative to this directory, so it
+    │   │                    # doubles as the Vercel project root.
+    │   ├── main.py           # app factory + entrypoint (`python main.py`,
+    │   │                     # or `uvicorn main:app`, run from src/backend)
+    │   ├── requirements.txt
     │   ├── app/
     │   │   ├── api/routes/  # HTTP endpoints: health, users, waste, rewards, report
     │   │   ├── core/        # settings/config (env vars, e.g. LLM_PROVIDER)
@@ -52,8 +56,10 @@ currently placeholders (empty `README.md` per folder) and not yet implemented.
   waste banks (e.g. landfill-diversion stats, program-wide reporting) — intended for
   program admins rather than end users.
 
-Start Backend: 
+Start Backend (from `src/backend`):
 ```bash
-python -m src.backend.app.main
+cd src/backend
+python main.py           # dev, auto-reload
+# or: uvicorn main:app --reload
 ```
 

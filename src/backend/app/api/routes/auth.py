@@ -3,9 +3,9 @@
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from src.backend.app.core.security import create_access_token, verify_password
-from src.backend.app.db import get_engine, users, waste_bank_regions
-from src.backend.app.schemas.auth import LoginRequest, Token
+from app.core.security import create_access_token, verify_password
+from app.db import get_engine, users, waste_bank_regions
+from app.schemas.auth import LoginRequest, Token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

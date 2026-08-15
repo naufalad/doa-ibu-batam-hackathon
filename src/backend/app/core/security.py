@@ -15,7 +15,7 @@ from typing import Any
 
 import jwt
 
-from src.backend.app.core.config import get_settings
+from app.core.config import get_settings
 
 _PBKDF2_ITERATIONS = 600_000
 

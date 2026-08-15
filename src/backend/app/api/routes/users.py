@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 
-from src.backend.app.api.deps import CurrentUser, get_current_user, require_roles
-from src.backend.app.core.security import hash_password
-from src.backend.app.db import get_engine, regions, users, waste_bank_regions
-from src.backend.app.schemas.user import (
+from app.api.deps import CurrentUser, get_current_user, require_roles
+from app.core.security import hash_password
+from app.db import get_engine, regions, users, waste_bank_regions
+from app.schemas.user import (
     UserCreate,
     UserOut,
     WasteBankAdminCreate,

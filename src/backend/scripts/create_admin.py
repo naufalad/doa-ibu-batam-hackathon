@@ -6,8 +6,8 @@ the latter requires an existing `authorized` caller). That's a chicken-
 and-egg problem for the very first `authorized` account, so it's seeded
 directly against the DB instead.
 
-Usage (from the repo root):
-    python -m src.backend.scripts.create_admin --email admin@pilahin.id --name "Ops Admin"
+Usage (from src/backend):
+    python -m scripts.create_admin --email admin@pilahin.id --name "Ops Admin"
 """
 
 from __future__ import annotations
@@ -18,8 +18,8 @@ import getpass
 from sqlalchemy import insert
 from sqlalchemy.exc import IntegrityError
 
-from src.backend.app.core.security import hash_password
-from src.backend.app.db import get_engine, init_db, users
+from app.core.security import hash_password
+from app.db import get_engine, init_db, users
 
 
 def create_authorized_user(email: str, name: str, password: str) -> int:

@@ -22,17 +22,17 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from sqlalchemy import func, insert, select, update
 
-from src.backend.app.api.deps import CurrentUser, require_roles
-from src.backend.app.core.config import Settings, get_settings
-from src.backend.app.db import get_engine, regions, users, waste_submissions, waste_tokens, wastes
-from src.backend.app.schemas.waste import (
+from app.api.deps import CurrentUser, require_roles
+from app.core.config import Settings, get_settings
+from app.db import get_engine, regions, users, waste_submissions, waste_tokens, wastes
+from app.schemas.waste import (
     PendingPickupOut,
     TokenDrawOut,
     WasteObjectPrediction,
     WasteSubmissionOut,
 )
-from src.backend.app.services.rewards_policy import compute_token_range
-from src.backend.app.services.waste_classifier import WasteClassifierService
+from app.services.rewards_policy import compute_token_range
+from app.services.waste_classifier import WasteClassifierService
 
 router = APIRouter(prefix="/waste", tags=["waste"])
 

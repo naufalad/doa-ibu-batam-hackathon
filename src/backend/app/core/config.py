@@ -34,8 +34,10 @@ class Settings(BaseSettings):
 
     # Where /waste/submit saves the rendered segmentation overlay + results
     # grid for each submission (mirrors what segment_classify.py's CLI writes
-    # for local runs). Relative to the process's working directory.
-    waste_output_dir: str = "src/backend/pipeline/images/output"
+    # for local runs). Relative to the process's working directory, which is
+    # always src/backend (see main.py) — Docker, Vercel, and local dev all
+    # run uvicorn from there.
+    waste_output_dir: str = "pipeline/images/output"
 
     # LLM report generation (see app/services/llm/ and /report endpoint).
     # "openai" | "claude" | "ollama" — defaults to a local Ollama daemon so

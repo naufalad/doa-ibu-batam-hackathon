@@ -7,11 +7,11 @@ configured LLM provider (see `app/services/llm/`, switchable via the
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from src.backend.app.core.config import Settings, get_settings
-from src.backend.app.schemas.report import UserReportOut
-from src.backend.app.services.llm import LLMProviderError
-from src.backend.app.services.report_generator import generate_user_report
-from src.backend.app.services.transactions import get_user_transactions
+from app.core.config import Settings, get_settings
+from app.schemas.report import UserReportOut
+from app.services.llm import LLMProviderError
+from app.services.report_generator import generate_user_report
+from app.services.transactions import get_user_transactions
 
 router = APIRouter(prefix="/report", tags=["report"])
 

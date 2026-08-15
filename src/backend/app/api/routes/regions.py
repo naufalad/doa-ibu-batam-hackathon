@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 
-from src.backend.app.api.deps import require_roles
-from src.backend.app.db import get_engine, regions as regions_table
-from src.backend.app.schemas.region import RegionCreate, RegionOut
+from app.api.deps import require_roles
+from app.db import get_engine, regions as regions_table
+from app.schemas.region import RegionCreate, RegionOut
 
 router = APIRouter(prefix="/regions", tags=["regions"])
 
