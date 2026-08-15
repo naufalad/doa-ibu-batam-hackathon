@@ -1,0 +1,24 @@
+fastapi
+# FastAPI 0.141.x still passes on_startup/on_shutdown down into
+# starlette.routing.Router.__init__, which starlette >=1.0 dropped —
+# pinning below avoids `TypeError: Router.__init__() got an unexpected
+# keyword argument 'on_startup'` on a fresh install. Safe to lift once
+# fastapi publishes a release compatible with starlette 1.x.
+starlette<1.0
+uvicorn[standard]
+pydantic-settings
+python-multipart
+email-validator
+httpx  # used by app/services/llm/ to call OpenAI/Claude/Ollama-compatible APIs
+pyjwt  # signs/verifies the JWTs issued by /auth/login (see app/core/security.py)
+sqlalchemy>=2.0  # Core (Table/select/insert/update) — see app/db.py; no ORM
+psycopg[binary]>=3.1  # PostgreSQL driver for the sqlalchemy "postgresql+psycopg" dialect
+
+# ML pipeline deps (pipeline/segment_classify.py). Commented out rather
+# than a live `-r`: the Dockerfile installs it as a separate explicit
+# `-r pipeline-requirements.txt` arg instead, since this file gets
+# flattened to /app/requirements.txt during the image build and a nested
+# `-r pipeline/requirements.txt` there would resolve to a path that
+# doesn't exist at that build step. Install manually for local dev:
+#   pip install -r src/backend/requirements.txt -r src/backend/pipeline/requirements.txt
+# -r pipeline/requirements.txt

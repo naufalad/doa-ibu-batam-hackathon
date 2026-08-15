@@ -24,9 +24,10 @@ class Settings(BaseSettings):
     # CORS
     cors_allow_origins: list[str] = ["*"]
 
-    # TODO: replace with a real database once persistence is wired up
-    # (e.g. postgres via SQLAlchemy, or a managed service).
-    database_url: str = "sqlite:///./pilahin.db"
+    # PostgreSQL via SQLAlchemy Core (see app/db.py). The "postgresql+psycopg"
+    # dialect selects the psycopg (v3) driver. `docker-compose.yml` runs a
+    # matching postgres service for this default to work out of the box.
+    database_url: str = "postgresql+psycopg://postgres:@localhost:5432/pilahin"
 
     # Waste classification pipeline (see pipeline/segment_classify.py)
     ml_device: str = "cpu"  # "cpu" | "mps" | "cuda"
@@ -51,6 +52,13 @@ class Settings(BaseSettings):
     anthropic_base_url: str = "https://api.anthropic.com"
 
     ollama_base_url: str = "http://localhost:11434"
+
+    # Auth (see app/core/security.py + app/api/deps.py). Override
+    # JWT_SECRET_KEY via env/`.env` outside of local development —
+    # this default is only safe for a throwaway dev DB.
+    jwt_secret_key: str = "dev-only-insecure-secret-change-me"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60 * 24
 
 
 @lru_cache

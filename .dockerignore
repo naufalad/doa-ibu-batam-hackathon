@@ -1,0 +1,35 @@
+# VCS / editor / tooling
+.git
+.gitignore
+.github
+.vscode
+.claude
+.idea
+
+# Docs (not needed at runtime)
+README.md
+docs
+
+# Local Python env — the image builds its own
+.venv
+venv
+env
+__pycache__
+*.py[codz]
+*.egg-info
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Secrets — pass real values via `docker run -e` / your platform's env vars
+.env
+src/backend/.env
+
+# Frontend apps are separate placeholders, not part of the backend image
+src/frontend
+
+# Sample pipeline images / generated outputs — not needed to build the image
+src/backend/pipeline/images
+
+Dockerfile
+.dockerignore
