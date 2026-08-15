@@ -34,11 +34,9 @@ class ClaudeProvider(LLMProvider):
             "model": self.model,
             "messages": turns,
             "max_tokens": max_tokens,
-            "temperature": temperature,
         }
         if system_prompt:
             payload["system"] = system_prompt
-
         async with httpx.AsyncClient(timeout=60) as client:
             try:
                 resp = await client.post(

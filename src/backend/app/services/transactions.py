@@ -1,30 +1,39 @@
-"""Historical waste-submission lookups.
-
-TODO: this is mock data so `/report` is exercisable before persistence
-exists. Replace with a real query once `waste.py`'s submissions are
-actually written to a database (see its TODO to persist `WasteSubmissionOut`
-rows) — swap the body of `get_user_transactions` for a DB read keyed on
-`user_id` and `since`.
-"""
+"""Historical waste-submission lookups."""
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from app.schemas.report import TransactionSummary
+from sqlalchemy import func, select
 
-_MOCK_TRANSACTIONS = [
-    TransactionSummary(date=datetime.now(timezone.utc) - timedelta(days=1), waste_label="plastic", num_objects=4, points_awarded=40),
-    TransactionSummary(date=datetime.now(timezone.utc) - timedelta(days=3), waste_label="paper", num_objects=2, points_awarded=20),
-    TransactionSummary(date=datetime.now(timezone.utc) - timedelta(days=6), waste_label="plastic", num_objects=3, points_awarded=30),
-    TransactionSummary(date=datetime.now(timezone.utc) - timedelta(days=10), waste_label="glass", num_objects=1, points_awarded=10),
-    TransactionSummary(date=datetime.now(timezone.utc) - timedelta(days=14), waste_label="battery", num_objects=1, points_awarded=10),
-]
+from app.db import get_engine, waste_submissions, waste_tokens, wastes
+from app.schemas.report import TransactionSummary
 
 
 def get_user_transactions(user_id: int, days: int = 30) -> list[TransactionSummary]:
     """Return this user's waste submissions from the last `days` days."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    # TODO: filter by real user_id once submissions are persisted; every
-    # user currently sees the same mock history.
-    return [t for t in _MOCK_TRANSACTIONS if t.date >= cutoff]
+    statement = (
+        select(
+            waste_submissions.c.created_at,
+            func.coalesce(func.min(wastes.c.waste_label), "unknown"),
+            func.count(wastes.c.id),
+            func.coalesce(func.sum(waste_tokens.c.drawn_points), 0),
+        )
+        .select_from(
+            waste_submissions.outerjoin(wastes, wastes.c.submission_id == waste_submissions.c.id).outerjoin(
+                waste_tokens, waste_tokens.c.waste_id == wastes.c.id
+            )
+        )
+        .where(waste_submissions.c.user_id == user_id, waste_submissions.c.created_at >= cutoff)
+        .group_by(waste_submissions.c.id, waste_submissions.c.created_at)
+        .order_by(waste_submissions.c.created_at.desc())
+    )
+
+    with get_engine().connect() as conn:
+        rows = conn.execute(statement).all()
+
+    return [
+        TransactionSummary(date=date, waste_label=waste_label, num_objects=num_objects, points_awarded=points_awarded)
+        for date, waste_label, num_objects, points_awarded in rows
+    ]
