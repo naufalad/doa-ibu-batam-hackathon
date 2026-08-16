@@ -362,7 +362,7 @@
     <button class="close-x" id="settingsClose" type="button">✕</button>
     <h3>Pengaturan</h3>
     <p class="hint">Disimpan lokal di browser ini saja.</p>
-    <div class="field"><label for="cfgApiBase">API base URL</label><input id="cfgApiBase" type="text" placeholder="http://localhost:8000/api/v1" /></div>
+    <div class="field"><label for="cfgApiBase">API base URL</label><input id="cfgApiBase" type="text" placeholder="https://doa-ibu-batam-hackathon-docker.onrender.com/api/v1" /></div>
     <div class="field"><label for="cfgAvgKg">Estimasi berat rata-rata per objek (kg)</label><input id="cfgAvgKg" type="number" step="0.1" min="0.1" /></div>
     <div class="field"><label for="cfgCapacityPct">Kapasitas TPA saat ini (%) — manual</label><input id="cfgCapacityPct" type="number" step="0.1" min="0" max="100" /></div>
     <div class="field"><label for="cfgCapacityTrend">Tren kapasitas 30 hari (%, boleh negatif) — manual</label><input id="cfgCapacityTrend" type="number" step="0.1" /></div>
@@ -392,7 +392,7 @@
    * window) is aggregated client-side from GET /waste/history + GET /regions.
    * ======================================================================= */
   const DEFAULT_CONFIG = {
-    apiBase: "http://localhost:8000/api/v1",
+    apiBase: "https://doa-ibu-batam-hackathon-docker.onrender.com/api/v1",
     avgKgPerObject: 4.2,
     capacityPct: 85,
     capacityTrendPct: 2.1,
